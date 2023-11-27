@@ -1,0 +1,80 @@
+---
+title: <center>Converting SingleCellExperiment Objects to Seurat Objects</center>
+author: "Herman Bank"
+output:
+  html_document:
+    df_print: paged
+---
+<br>
+
+<h4>This program will grab the SingleCellExperiment object files from a local directory, convert them to Seurat objects, then save the Seurat object in a local drirectory</h4>
+
+<h4>Need to change the directory path, file path and output path to your local machine addresses</h4>
+```{r}
+#install.packages("BiocManager")
+```
+
+```{r}
+#BiocManager::install("SingleCellExperiment")
+```
+
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+
+# libraries
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(Matrix)
+library(SingleCellExperiment)
+library(SummarizedExperiment)
+library(MatrixGenerics)
+library(matrixStats)
+library(GenomicRanges)
+library(stats4)
+library(BiocGenerics)
+library(S4Vectors)
+library(IRanges)
+library(GenomeInfoDb)
+library(Biobase)
+library(gridExtra)
+library(tidyverse)
+library(ggplot2)
+```
+
+
+```{r}
+
+# Set the directory path containing the RDS files
+directory_path <- "~/TeamB/SCE/"
+
+# Get a list of RDS files in the directory
+file_paths<- list.files(directory_path, pattern = "//.rds$", full.names = TRUE)
+
+
+# Convert each SingleCellExperiment object to Seurat object
+for (file in file_paths) {
+  # Load the SingleCellExperiment object
+  sce <- readRDS(file)
+  
+  # Convert SingleCellExperiment object to Seurat object
+  seurat_obj <- CreateSeuratObject(counts = assay(sce, "counts"))
+  
+  
+  # Set additional Seurat-specific attributes if needed
+  seurat_obj@assays$RNAseq <- list(counts = assay(sce, "counts"))
+  
+  
+  # Set the file path for saving the Seurat object
+  output_file <- paste0( "~/TeamB/SeuratObjects/", substr(basename(file), 1, 5), ".rds")
+  
+  # Save the Seurat object as an RDS file
+  saveRDS(seurat_obj, output_file)
+}
+```
+
+
+

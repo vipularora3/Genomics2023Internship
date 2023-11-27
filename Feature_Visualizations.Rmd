@@ -1,0 +1,131 @@
+---
+title: <center>RNA Feature and Count Visualiztions For All Sets</center>
+author: "Herman Bank"
+output:
+  html_document:
+    df_print: paged
+---
+<br>
+
+<h4>This program will do the following:
+
+1. Remove the control groups from set A
+
+2. For all sets, calculate mitochondrial QC metrics with the PercentageFeatureSet() function, which calculates the percentage of counts originating from a set of features
+
+3. Visualizations (violin plots) on RNA feature (nfeatures) and RNA count (nCount) for each set 
+
+<br>
+
+To enhance visual clarity and emphasize the significance of highly prevalent and most important genes, the violin plots data were filtered to a specified maximum count as a measure of quality control.
+
+The RNA feature (nfeatures) plots ranged from 0 to 2500 with increments of 250, while the RNA count (nCount) plots ranged from 0 to 5000 with increments of 500.</h4>
+
+<br>
+Need to change the directory path, file path and output path to your local machine addresses
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+
+# libraries
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(Matrix)
+library(tidyverse)
+library(ggplot2)
+```
+
+
+```{r}
+set_A <- readRDS("~/TeamB/SeuratObjects/set_A.rds")
+set_B <- readRDS("~/TeamB/SeuratObjects/set_B.rds")
+set_C <- readRDS("~/TeamB/SeuratObjects/set_C.rds")
+set_D <- readRDS("~/TeamB/SeuratObjects/set_D.rds")
+set_E <- readRDS("~/TeamB/SeuratObjects/set_E.rds")
+```
+
+
+```{r}
+
+ # Removing the control groups from set_A
+set_A <- subset(set_A, orig.ident == c("SHAM-M505", "SHAM-M514"))
+levels(set_A$orig.ident)
+set_A$orig.ident <- droplevels(set_A$orig.ident)
+
+```
+
+```{r}
+
+set_A[["percent.mt"]] <- PercentageFeatureSet(set_A, pattern = "^MT-")
+set_B[["percent.mt"]] <- PercentageFeatureSet(set_B, pattern = "^MT-")
+set_C[["percent.mt"]] <- PercentageFeatureSet(set_C, pattern = "^MT-")
+set_D[["percent.mt"]] <- PercentageFeatureSet(set_D, pattern = "^MT-")
+set_E[["percent.mt"]] <- PercentageFeatureSet(set_E, pattern = "^MT-")
+
+```
+
+
+Since the mitochondria percentage is the same for all factors in all sets, will ignore percent.mt
+```{r}
+
+set_list <- c(set_A,set_B,set_C,set_D,set_E)
+
+# for (set in set_list){
+#   suppressWarnings({
+#     # Visualize QC metrics as a violin plot
+#     plot <- VlnPlot(set, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+#     # Print the plot
+#     print(plot)
+#   })
+# }
+# 
+# # Removing nuneccary data from memory
+# remove('set')
+
+```
+
+
+```{r}
+
+for (i in seq_along(set_list)) {
+  set <- set_list[[i]]
+  set_name <- paste0("Set ", LETTERS[i])
+  titleText <- "nFeature RNA"
+  suppressWarnings({
+    # Visualize QC metrics as a violin plot
+    plot <- VlnPlot(set, features = c("nFeature_RNA"), pt.size = 0) +  theme(legend.position = "none") + ggtitle(paste(set_name, titleText)) + ggtitle(paste(set_name, titleText)) + scale_y_continuous(labels = scales::comma)
+    plot <- plot + scale_y_continuous(limits = c(0, 2500), breaks = seq(0, 2500, by = 250)) + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+   
+    # Print the plot
+    print(plot)
+    
+    
+  titleText <- "nCount RNA"
+    # Visualize QC metrics as a violin plot
+    plot <- VlnPlot(set, features = c("nCount_RNA"), pt.size = 0) +  theme(legend.position = "none") + ggtitle(paste(set_name, titleText)) + ggtitle(paste(set_name, titleText)) + scale_y_continuous(labels = scales::comma)
+    plot <- plot + scale_y_continuous(limits = c(0, 5000), breaks = seq(0, 5000, by = 500)) + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+ 
+    # Print the plot
+    print(plot)
+  })
+}
+
+
+```
+
+
+
+```{r}
+remove('set','set_list', 'set_A', 'set_B','set_C','set_D','set_E')
+```
+
+
+
+
+
+
+
+
+

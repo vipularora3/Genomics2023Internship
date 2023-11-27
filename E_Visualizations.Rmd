@@ -1,0 +1,418 @@
+---
+title: <center>Visualizations of Set_E Subsets (Features)</center>
+author: "Herman Bank"
+output:
+  html_document:
+    df_print: paged
+---
+
+<br>
+
+<h4>This program will do the following:
+
+1. Separate the set_E subsets into individual .rds files and store in a local directory
+
+2. Visualizations (violin plots) on RNA feature (nfeatures) and RNA count (nCount) for each subset.
+
+3. Store the visualizations as png files in a local directory 
+
+<br>
+
+To enhance visual clarity and emphasize the significance of highly prevalent and most important genes, the violin plots data were filtered to a specified maximum count as a measure of quality control.
+
+The RNA feature (nfeatures) plots ranged from 0 to 2500 with increments of 250, while the RNA count (nCount) plots ranged from 0 to 5000 with increments of 500.</h4>
+
+<br>
+Need to change the directory path, file path and output path to your local machine addresses
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+
+# libraries
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(Matrix)
+library(tidyverse)
+library(ggplot2)
+
+```
+
+
+Creating a list of all set_E subsets
+```{r}
+
+# # Loading set_E
+# set_E <- readRDS("~/TeamB/SeuratObjects/set_E.rds")
+# 
+# # Listing all the set_E subsets
+# factor_levels <- levels(set_E@active.ident)
+# print(factor_levels)
+
+
+```
+
+
+Separates the E subsets as individual files and stores in a local directory
+```{r}
+
+# #Name of all the subsets
+# factors<- c("recur-M504", "recur-M519", "Wk2-M486", "Wk2-M488", "Wk10-M509", "Wk4-M482", "Wk4-M489", "Wk7-M502", "Wk0-M505", "Wk0-M514")
+# 
+# # Create a directory to store the subsets
+# dir <- "~/TeamB/set_E_files"
+# dir.create(dir)
+# 
+# # Loop through factors
+# for (factor in factors) {
+#   # Subset the data based on the factor
+#   subset_data <- subset(set_E, orig.ident == factor)
+#   subset_data[['percent.mt']] <- PercentageFeatureSet(subset_data, pattern = 'mt.')
+# 
+#   # Save the subset as an RDS file
+#   file_name <- paste0(dir, "/", factor, ".rds")
+#   saveRDS(subset_data, file = file_name)
+# 
+#  }
+# 
+# # Remove unnecessary data from memory
+# remove('subset_data')
+# remove('set_E')
+
+```
+
+
+Most peoples desktops and laptops do not have the memory to combine all 10 subsets as a list, therefore running 2 subsets at a time for the visualizations, then removing unneeded files from memory
+```{r}
+
+# #DONT HAVE ENOUGH MEMORY TO RUN
+# # This is the code theat would be used if had suffiecient memory
+# # Directory path
+# directory_path <- "~/TeamB/set_E_files"
+# 
+# # Get the list of file names from the directory
+# file_list <- list.files(directory_path, pattern = "\\.rds$", full.names = TRUE)
+# 
+# # Load the RDS files using lapply()
+# setE_objects <- lapply(file_list, readRDS)
+
+
+```
+
+
+```{r}
+
+output_dir <- "~/TeamB/set_E_Plots/"
+
+recur_M504 <- readRDS("~/TeamB/set_E_files/recur-M504.rds")
+recur_M519 <- readRDS("~/TeamB/set_E_files/recur-M519.rds")
+
+set_list <- c(recur_M504, recur_M519)
+set_names <- c("recur_M504", "recur_M519")
+```
+
+
+```{r}
+
+for (i in seq_along(set_list)) {
+  set <- set_list[[i]]
+  set_name <- set_names[i]
+  titleText <- "nFeature RNA"
+  suppressWarnings({
+    # Visualize QC metrics as a violin plot
+    plot <- VlnPlot(set, features = c("nFeature_RNA"), pt.size = 0) +  theme(legend.position = "none") + ggtitle(paste(set_name, titleText)) +  scale_y_continuous(labels = scales::comma)
+    plot <- plot + scale_y_continuous(limits = c(0, 2500), breaks = seq(0, 2500, by = 250)) + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+   
+   # Save the plot as an image file
+    filename <- paste0(output_dir, set_name, "_nFeature_RNA.png")
+    ggsave(filename, plot, width = 6, height = 4, dpi = 300)
+ 
+    # Print the plot
+    print(plot)
+    
+    titleText <- "nCount_RNA"
+    plot <- VlnPlot(set, features = c("nCount_RNA"), pt.size = 0) +  theme(legend.position = "none") + ggtitle(paste(set_name, titleText)) +  scale_y_continuous(labels = scales::comma)
+    plot <- plot + scale_y_continuous(limits = c(0, 5000), breaks = seq(0, 5000, by = 500)) + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+    
+    # Save the plot as an image file
+    filename <- paste0(output_dir, set_name, "_nCount_RNA.png")
+    ggsave(filename, plot, width = 6, height = 4, dpi = 300)
+ 
+    # Print the plot
+    print(plot)
+    
+    
+     titleText <- "percent.mt"
+    plot <- VlnPlot(set, features = c("percent.mt"), pt.size = 0) +  theme(legend.position = "none") + ggtitle(paste(set_name, titleText)) +  scale_y_continuous(labels = scales::comma)
+    plot <- plot + scale_y_continuous(limits = c(0, 20), breaks = seq(0, 20, by = 2)) + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+    
+    # Save the plot as an image file
+    filename <- paste0(output_dir, set_name, "_percent.mt.png")
+    ggsave(filename, plot, width = 6, height = 4, dpi = 300)
+ 
+    # Print the plot
+    print(plot)
+  })
+}
+
+# Removing unneeded files from memory
+remove('set')
+```
+
+
+```{r}
+
+# Removing unneeded files from memory
+remove('set_list', 'recur_M504', 'recur_M519')
+
+Wk2_M486 <- readRDS("~/TeamB/set_E_files/Wk2-M486.rds")
+Wk2_M488 <- readRDS("~/TeamB/set_E_files/Wk2-M488.rds")
+
+set_list <- c(Wk2_M486, Wk2_M488)
+set_names <- c('Wk2_M486','Wk2_M488')
+
+```
+
+
+```{r}
+
+for (i in seq_along(set_list)) {
+  set <- set_list[[i]]
+  set_name <- set_names[i]
+  titleText <- "nFeature RNA"
+  suppressWarnings({
+    # Visualize QC metrics as a violin plot
+    plot <- VlnPlot(set, features = c("nFeature_RNA"), pt.size = 0) +  theme(legend.position = "none") + ggtitle(paste(set_name, titleText)) +  scale_y_continuous(labels = scales::comma)
+    plot <- plot + scale_y_continuous(limits = c(0, 2500), breaks = seq(0, 2500, by = 250))  + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+   
+   # Save the plot as an image file
+    filename <- paste0(output_dir, set_name, "_nFeature_RNA.png")
+    ggsave(filename, plot, width = 6, height = 4, dpi = 300)
+ 
+    # Print the plot
+    print(plot)
+    
+    titleText <- "nCount_RNA"
+    plot <- VlnPlot(set, features = c("nCount_RNA"), pt.size = 0) +  theme(legend.position = "none") + ggtitle(paste(set_name, titleText)) +  scale_y_continuous(labels = scales::comma)
+    plot <- plot + scale_y_continuous(limits = c(0, 5000), breaks = seq(0, 5000, by = 500)) + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+    
+    # Save the plot as an image file
+    filename <- paste0(output_dir, set_name, "_nCount_RNA.png")
+    ggsave(filename, plot, width = 6, height = 4, dpi = 300)
+ 
+    # Print the plot
+    print(plot)
+    
+    
+     titleText <- "percent.mt"
+    plot <- VlnPlot(set, features = c("percent.mt"), pt.size = 0) +  theme(legend.position = "none") + ggtitle(paste(set_name, titleText)) +  scale_y_continuous(labels = scales::comma)
+    plot <- plot + scale_y_continuous(limits = c(0, 20), breaks = seq(0, 20, by = 2)) + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+    
+    # Save the plot as an image file
+    filename <- paste0(output_dir, set_name, "_nCount_RNA.png")
+    ggsave(filename, plot, width = 6, height = 4, dpi = 300)
+ 
+    # Print the plot
+    print(plot)
+  })
+}
+
+# Removing unneeded files from memory
+remove('set')
+```
+
+
+```{r}
+
+# Removing unneeded files from memory
+remove('set_list','Wk2_M486','Wk2_M488')
+
+Wk4_M482 <- readRDS("~/TeamB/set_E_files/Wk4-M482.rds")
+Wk4_M489 <- readRDS("~/TeamB/set_E_files/Wk4-M489.rds")
+
+set_list <- c(Wk4_M482, Wk4_M489)
+set_names <- c('Wk4_M482', 'Wk4_M489')
+
+```
+
+
+```{r}
+
+for (i in seq_along(set_list)) {
+  set <- set_list[[i]]
+  set_name <- set_names[i]
+  titleText <- "nFeature RNA"
+  suppressWarnings({
+    # Visualize QC metrics as a violin plot
+    plot <- VlnPlot(set, features = c("nFeature_RNA"), pt.size = 0) +  theme(legend.position = "none") + ggtitle(paste(set_name, titleText)) +  scale_y_continuous(labels = scales::comma)
+    plot <- plot + scale_y_continuous(limits = c(0, 2500), breaks = seq(0, 2500, by = 250))  + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+   
+   # Save the plot as an image file
+    filename <- paste0(output_dir, set_name, "_nFeature_RNA.png")
+    ggsave(filename, plot, width = 6, height = 4, dpi = 300)
+ 
+    # Print the plot
+    print(plot)
+    
+    titleText <- "nCount_RNA"
+    plot <- VlnPlot(set, features = c("nCount_RNA"), pt.size = 0) +  theme(legend.position = "none") + ggtitle(paste(set_name, titleText)) +  scale_y_continuous(labels = scales::comma)
+    plot <- plot + scale_y_continuous(limits = c(0, 5000), breaks = seq(0, 5000, by = 500)) + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+    
+    # Save the plot as an image file
+    filename <- paste0(output_dir, set_name, "_nCount_RNA.png")
+    ggsave(filename, plot, width = 6, height = 4, dpi = 300)
+ 
+    # Print the plot
+    print(plot)
+    
+    
+     titleText <- "percent.mt"
+    plot <- VlnPlot(set, features = c("percent.mt"), pt.size = 0) +  theme(legend.position = "none") + ggtitle(paste(set_name, titleText)) +  scale_y_continuous(labels = scales::comma)
+    plot <- plot + scale_y_continuous(limits = c(0, 20), breaks = seq(0, 20, by = 2)) + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+    
+    # Save the plot as an image file
+    filename <- paste0(output_dir, set_name, "_nCount_RNA.png")
+    ggsave(filename, plot, width = 6, height = 4, dpi = 300)
+ 
+    # Print the plot
+    print(plot)
+  })
+}
+
+# Removing unneeded files from memory
+remove('set')
+```
+
+
+```{r}
+
+# Removing unneeded files from memory
+remove('set_list','Wk4_M482','Wk4_M489')
+
+Wk7_M502 <- readRDS("~/TeamB/set_E_files/Wk7-M502.rds")
+Wk10_M509 <- readRDS("~/TeamB/set_E_files/Wk10-M509.rds")
+
+set_list <- c(Wk7_M502, Wk10_M509)
+set_names <- c('Wk7_M502', 'Wk10_M509')
+
+
+```
+
+
+```{r}
+
+for (i in seq_along(set_list)) {
+  set <- set_list[[i]]
+  set_name <- set_names[i]
+  titleText <- "nFeature RNA"
+  suppressWarnings({
+    # Visualize QC metrics as a violin plot
+    plot <- VlnPlot(set, features = c("nFeature_RNA"), pt.size = 0) +  theme(legend.position = "none") + ggtitle(paste(set_name, titleText)) +  scale_y_continuous(labels = scales::comma)
+    plot <- plot + scale_y_continuous(limits = c(0, 2500), breaks = seq(0, 2500, by = 250))  + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+   
+   # Save the plot as an image file
+    filename <- paste0(output_dir, set_name, "_nFeature_RNA.png")
+    ggsave(filename, plot, width = 6, height = 4, dpi = 300)
+ 
+    # Print the plot
+    print(plot)
+    
+    titleText <- "nCount_RNA"
+    plot <- VlnPlot(set, features = c("nCount_RNA"), pt.size = 0) +  theme(legend.position = "none") + ggtitle(paste(set_name, titleText)) +  scale_y_continuous(labels = scales::comma)
+    plot <- plot + scale_y_continuous(limits = c(0, 5000), breaks = seq(0, 5000, by = 500)) + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+    
+    # Save the plot as an image file
+    filename <- paste0(output_dir, set_name, "_nCount_RNA.png")
+    ggsave(filename, plot, width = 6, height = 4, dpi = 300)
+ 
+    # Print the plot
+    print(plot)
+    
+    
+     titleText <- "percent.mt"
+    plot <- VlnPlot(set, features = c("percent.mt"), pt.size = 0) +  theme(legend.position = "none") + ggtitle(paste(set_name, titleText)) +  scale_y_continuous(labels = scales::comma)
+    plot <- plot + scale_y_continuous(limits = c(0, 20), breaks = seq(0, 20, by = 2)) + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+    
+    # Save the plot as an image file
+    filename <- paste0(output_dir, set_name, "_nCount_RNA.png")
+    ggsave(filename, plot, width = 6, height = 4, dpi = 300)
+ 
+    # Print the plot
+    print(plot)
+  })
+}
+
+# Removing unneeded files from memory
+remove('set')
+```
+
+
+```{r}
+
+# Removing unneeded files from memory
+remove('set_list','Wk7_M502','Wk10_M509')
+
+Wk0_M505 <- readRDS("~/TeamB/set_E_files/Wk0-M505.rds")
+Wk0_M514 <- readRDS("~/TeamB/set_E_files/Wk0-M514.rds")
+
+set_list <- c(Wk0_M505, Wk0_M514)
+set_names <- c('Wk0_M505', 'Wk0_M514')
+
+```
+
+
+```{r}
+
+for (i in seq_along(set_list)) {
+  set <- set_list[[i]]
+  set_name <- set_names[i]
+  titleText <- "nFeature RNA"
+  suppressWarnings({
+    # Visualize QC metrics as a violin plot
+    plot <- VlnPlot(set, features = c("nFeature_RNA"), pt.size = 0) +  theme(legend.position = "none") + ggtitle(paste(set_name, titleText)) +  scale_y_continuous(labels = scales::comma)
+    plot <- plot + scale_y_continuous(limits = c(0, 2500), breaks = seq(0, 2500, by = 250))  + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+   
+   # Save the plot as an image file
+    filename <- paste0(output_dir, set_name, "_nFeature_RNA.png")
+    ggsave(filename, plot, width = 6, height = 4, dpi = 300)
+ 
+    # Print the plot
+    print(plot)
+    
+    titleText <- "nCount_RNA"
+    plot <- VlnPlot(set, features = c("nCount_RNA"), pt.size = 0) +  theme(legend.position = "none") + ggtitle(paste(set_name, titleText)) +  scale_y_continuous(labels = scales::comma)
+    plot <- plot + scale_y_continuous(limits = c(0, 5000), breaks = seq(0, 5000, by = 500)) + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+    
+    # Save the plot as an image file
+    filename <- paste0(output_dir, set_name, "_nCount_RNA.png")
+    ggsave(filename, plot, width = 6, height = 4, dpi = 300)
+ 
+    # Print the plot
+    print(plot)
+    
+    
+     titleText <- "percent.mt"
+    plot <- VlnPlot(set, features = c("percent.mt"), pt.size = 0) +  theme(legend.position = "none") + ggtitle(paste(set_name, titleText)) +  scale_y_continuous(labels = scales::comma)
+    plot <- plot + scale_y_continuous(limits = c(0, 50), breaks = seq(0, 50, by = 5)) + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+    
+    # Save the plot as an image file
+    filename <- paste0(output_dir, set_name, "_nCount_RNA.png")
+    ggsave(filename, plot, width = 6, height = 4, dpi = 300)
+ 
+    # Print the plot
+    print(plot)
+  })
+}
+
+# Removing unneeded files from memory
+remove('set')
+```
+
+
+```{r}
+
+# Removing unneeded files from memory
+remove('set_list','Wk0_M505', 'Wk0_M514')
+```
+

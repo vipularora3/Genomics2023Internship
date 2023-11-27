@@ -1,0 +1,260 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-07-30"
+---
+
+
+```{r}
+
+# install.packages('BiocManager') a
+# BiocManager::install('multtest') 
+# install.packages('metap')
+
+```
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+
+# libraries
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(Matrix)
+library(tidyverse)
+library(ggplot2)
+library(scales)
+#library(metap)
+
+```
+
+
+
+Creating a list of all set_E subsets
+```{r}
+
+# Loading set_E
+set_E <- readRDS("~/TeamB/SeuratObjects/set_E.rds")
+
+# Listing all the set_E subsets
+factor_levels <- levels(set_E@active.ident)
+print(factor_levels)
+```
+
+```{r}
+Hi_MYC <- subset(set_E)
+remove('set_E')
+```
+
+
+```{r}
+
+# quality control 
+Hi_MYC[['percent.mt']] <- PercentageFeatureSet(Hi_MYC, pattern = 'mt.')
+Hi_MYC <- subset(Hi_MYC, nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+```
+
+
+```{r, echo=FALSE, include=FALSE}
+
+#renaming SHAM-M505 and SHAM-M514 so that we can use the splitobject function in the next step
+levels(Hi_MYC$orig.ident)[levels(Hi_MYC$orig.ident)==c('SHAM-M505', 'SHAM-M514')] <- 'SHAM'
+levels(Hi_MYC$orig.ident)
+Hi_MYC$orig.ident <- droplevels(Hi_MYC$orig.ident)
+
+#renaming all the other orig.idents so that we can use the splitobject function  below in the next step
+levels(Hi_MYC$orig.ident)[levels(Hi_MYC$orig.ident)==c('Cx-M504-recur', 'Cx-M519-recur', 'Cx-Wk2-M486', 'Cx-Wk2-M488', 'Cxwk10-M509', 'Cxwk4-M482', 'Cxwk4-M489', 'Cxwk7-M502')] <- 'STIM'
+levels(Hi_MYC$orig.ident)
+Hi_MYC$orig.ident <- droplevels(Hi_MYC$orig.ident)
+
+```
+
+
+```{r}
+
+Hi_MYC.list <- SplitObject(Hi_MYC, split.by = 'orig.ident')
+remove('Hi_MYC')
+```
+
+
+```{r}
+
+# normalize and identify variable features for each dataset independently
+Hi_MYC.list <- lapply(X = Hi_MYC.list, FUN = function(x) {
+    x <- NormalizeData(x)
+    x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 2500)
+})
+
+# select features that are repeatedly variable across datasets for integration
+features <- SelectIntegrationFeatures(object.list = Hi_MYC.list)
+```
+
+
+Identifying anchors using the FindIntegrationAnchors() function, which takes a list of Seurat objects as input, and use these anchors to integrate the two datasets together with IntegrateData().
+```{r}
+
+immune.anchors <- FindIntegrationAnchors(object.list = Hi_MYC.list, anchor.features = features)
+
+# createsd an 'integrated' data assay
+immune.combined <- IntegrateData(anchorset = immune.anchors)
+remove('immune.anchors')
+```
+
+```{r}
+# Replace "path/to/directory" with the desired path where you want to save the file.
+saveRDS(Hi_MYC.list, file = "~/TeamB/ETC_Files/Hi_MYC.list.rds")
+saveRDS(immune.combined, file = "~/TeamB/ETC_Files/immune.combinedBefore.rds")
+
+```
+
+
+```{r}
+
+# Performing downstream analysis on the corrected data 
+DefaultAssay(immune.combined) <- "integrated"
+
+# Run the standard workflow for visualization and clustering
+immune.combined <- ScaleData(immune.combined, verbose = FALSE)
+immune.combined <- RunPCA(immune.combined, npcs = 30, verbose = FALSE)
+immune.combined <- RunUMAP(immune.combined, reduction = "pca", dims = 1:30)
+immune.combined <- FindNeighbors(immune.combined, reduction = "pca", dims = 1:30)
+immune.combined <- FindClusters(immune.combined, resolution = 0.5)
+# saveRDS(immune.combined, file = "~/TeamB/ETC_Files/immune.combined.rds")
+
+```
+
+
+```{r}
+
+
+# Visualization
+p1 <- DimPlot(immune.combined, reduction = "umap", group.by = "orig.ident")
+p2 <- DimPlot(immune.combined, reduction = "umap", label = TRUE, repel = TRUE)
+p <- p1 + p2
+# Save the plot to a directory (change "path/to/your/directory" to the desired directory)
+# ggsave(filename = "~/TeamB/Visualizations/pca_CtrlAndSTIM.png", plot = p)
+# ggsave(filename = "~/TeamB/Visualizations/pca_STIM.png", plot = p2)
+
+print(p)
+print(p2)
+
+```
+
+
+```{r}
+
+# renaming immune.combined prior to grouping
+immune.combined2 <- immune.combined
+
+
+# Find rows that begin with "SHAM" in orig.ident and rename them to "SHAM"
+immune.combined$orig.ident[grepl("^SHAM", immune.combined$orig.ident)] <- "SHAM"
+
+# Rename all other rows in orig.ident to "STIM"
+immune.combined$orig.ident[immune.combined$orig.ident != "SHAM"] <- "STIM"
+
+# Remove unused levels
+immune.combined$orig.ident <- factor(immune.combined$orig.ident)
+
+# Check the levels of the modified orig.ident column
+levels(immune.combined$orig.ident)
+
+# renaming immune.combined prior to grouping
+saveRDS(immune.combined, file = "~/TeamB/ETC_Files/immune.combined2.rds")
+saveRDS(immune.combined, file = "~/TeamB/ETC_Files/immune.combined.rds")
+```
+
+
+```{r}
+
+# Filter column names that begin with "SHAM"
+sham_cols <- grep("^SHAM", colnames(immune.combined), value = TRUE)
+
+# Create a new metadata column to group by "SHAM" or "STIM"
+immune.combined$sham_group <- ifelse(immune.combined$orig.ident %in% sham_cols, "SHAM", "STIM")
+
+# Use the new "sham_group" column to split the plot
+pca3 <-DimPlot(immune.combined, reduction = "umap", split.by = "sham_group",label = TRUE, repel = TRUE)
+# ggsave(filename = "~/TeamB/Visualizations/pca_SplitBySHAM.png", plot = pca3)
+print(pca3)
+```
+
+
+```{r}
+
+# creating table of all clust countser
+cluster_counts <- table(immune.combined$seurat_clusters)
+ 
+# Sort the cluster counts in descending order
+sorted_counts <- sort(cluster_counts, decreasing = TRUE)
+
+# Get the two largest clusters
+largest_clusters <- names(sorted_counts)[1:2]
+
+# Print the cluster IDs of the two largest clusters
+print(largest_clusters)
+
+```
+
+
+```{r}
+# Performing differential expression after integration on the two largest clusters
+DefaultAssay(immune.combined) <- "RNA"
+nk.markers <- FindConservedMarkers(immune.combined,ident.1 = "0",ident.2 = "1", grouping.var = "orig.ident", verbose = FALSE)
+head(nk.markers)
+```
+
+
+```{r}
+sorted_nk.markers <- nk.markers %>%
+  arrange(desc(STIM_p_val_adj))
+
+# Print the sorted nk.markers
+```
+
+
+```{r}
+print(head(rownames(sorted_nk.markers), 10))
+```
+
+
+
+```{r}
+# Define the features (genes) for the FeaturePlot
+features <- c("Slc29a1", "Cxcl14", "Nr4a1", "Ubn2", "Arap1", "Dync1i2", "Tnfrsf1a", "Tsn", "Ppp3ca", "Smg1")
+
+# Create the FeaturePlot with three plots per row
+p4 <- FeaturePlot(immune.combined, features = features, min.cutoff = "q9", ncol = 3)
+
+
+# Print the plots
+print(p4)
+# ggsave(filename = "~/TeamB/Visualizations/featureplot.png", plot = p4)
+```
+
+```{r}
+
+# Create an empty list to store the plots
+plots_list <- list()
+
+# Create the FeaturePlot for each feature in a loop
+for (feature in features) {
+  plot <- FeaturePlot(immune.combined, features = feature, min.cutoff = "q9")
+  plots_list[[feature]] <- plot
+  # ggsave(filename = paste("~/TeamB/Visualizations/FeaturePlotSeparate/", feature, ".png", sep = ""), plot = plot)
+}
+
+
+# Print each plot
+for (feature in features) {
+  print(plots_list[[feature]])
+}  
+
+```
+
+
+
+
+
